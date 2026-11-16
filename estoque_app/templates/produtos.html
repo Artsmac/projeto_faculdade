@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="ÜTF-8">
+        <meta name=""viewport" content="width=device-width, initial-scale=1.0">
+        <title>Produtos</title>
+    </head>
+    <body>
+        <h1>Produtos</h1>
+        <form method="get">
+            <input type="search" name="q" value="{{ q }}" placeholder="Buscar produto">
+            <button type="submit">Buscar</button>
+        </form>
+
+        <table border="1" cellpadding="8">
+            <tr><th>Produto</th><th>Grupo</th><th>Saldo</th><th>Minimo</th><th>Situação</th></tr>
+            {% for produto in produtos %}
+                <tr>
+                    <td>{{ produto.nome }}</td>
+                    <td>{{ produto.grupo }}</td>
+                    <td>{{ produto.saldo }}</td>
+                    <td>{{ produto.minimo }}</td>
+                    <td>{{ produto.situacao }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </body>
+</html>
