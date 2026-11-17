@@ -6,6 +6,7 @@
         <title>Produtos</title>
     </head>
     <body>
+        <p>{{ session['nome']}} ({{ session['perfil']}}) <a href="{{url_for('logout')}}">Sair</a>/a></p>
         <h1>Produtos</h1>
         <form method="get">
             <input type="search" name="q" value="{{ q }}" placeholder="Buscar produto">
