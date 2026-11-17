@@ -27,3 +27,33 @@ def login_requerido(funcao):
             return funcao(*args, **kwargs)
         return interna
     return decorador
+
+# -- login
+
+@app.route("/")
+def index():
+    return redirect(url_for("produtos"))
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        login_digitado = request.from.get("login", "").strip()
+        senha = request.from.get("senha", "")
+        resultado = consultar(
+            "SELECT id_usuario, nome, senha_hash, perfil "
+            "FROM usuario WHERE login = %s AND ativo = TRUE",
+            (login_digitado,),
+        )
+        if resultado and check_password_hash(resultado[0]["senha_hash"], senha):
+            usuario = resultado[0]
+            session.clear()
+            session["id_usuario"] = usuario["id_usuario"]
+            session["nome"] = usuario["nome"]
+            session["perfil"] = usuario["perfil"]
+            return redirect(url_for("produtos"))
+        flash("Login ou senha inválidos.")
+    return render_template(login.html)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
