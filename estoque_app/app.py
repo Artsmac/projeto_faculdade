@@ -36,8 +36,8 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        login_digitado = request.from.get("login", "").strip()
-        senha = request.from.get("senha", "")
+        login_digitado = request.form.get("login", "").strip()
+        senha = request.form.get("senha", "")
         resultado = consultar(
             "SELECT id_usuario, nome, senha_hash, perfil "
             "FROM usuario WHERE login = %s AND ativo = TRUE",
