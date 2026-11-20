@@ -1,29 +1,64 @@
 <!DOCTYPE html>
 <html lang="pt-br">
     <head>
-        <meta charset="ÜTF-8">
-        <meta name=""viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Produtos</title>
     </head>
     <body>
-        <p>{{ session['nome']}} ({{ session['perfil']}}) <a href="{{url_for('logout')}}">Sair</a>/a></p>
+        <p>
+            {{ session['nome']}} ({{ session['perfil']}})
+            | <a href="{{url_for('logout')}}">Sair</a>
+        </p>
+        {% with mensagens = get_flashed_messages() %}
+            {% if mensagens %}
+                <ul>
+                    {% for msg in mensagens %}
+                    <li><strong>{{ msg }}</strong></li>
+                    {% end for %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
         <h1>Produtos</h1>
         <form method="get">
-            <input type="search" name="q" value="{{ q }}" placeholder="Buscar produto">
+            <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nome ou SKU">
             <button type="submit">Buscar</button>
+            {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
+                <a href="{{url_for('produto_novo')}}">+ Novo Produto</a>
+            {% endif %}
         </form>
 
+        <br>
+
         <table border="1" cellpadding="8">
-            <tr><th>Produto</th><th>Grupo</th><th>Saldo</th><th>Minimo</th><th>Situação</th></tr>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Grupo</th>
+                    <th>Saldo</th>
+                    <th>Minimo</th>
+                    <th>Situação</th>
+                </tr>
+            </thead>
+            <tbody>
             {% for produto in produtos %}
                 <tr>
+                    <td>{{ produto.sku }}</td>
                     <td>{{ produto.nome }}</td>
-                    <td>{{ produto.grupo }}</td>
-                    <td>{{ produto.saldo }}</td>
-                    <td>{{ produto.minimo }}</td>
+                    <td>{{ produto.categoria or '-' }}</td>
+                    <td>{{ produto.localizacao or '-' }}</td>
+                    <td>{{ produto.estoque_atual }}</td>
+                    <td>{{ produto.estoque_minimo }}</td>
+                    <td>{{ produto.data_validade or '-' }}</td>
                     <td>{{ produto.situacao }}</td>
                 </tr>
+            {% else %}
+                <tr>
+                    <td colspan="8">Nenhum produto encontrado.</td>
+                </tr>
             {% endfor %}
+            </tbody>
         </table>
     </body>
 </html>
