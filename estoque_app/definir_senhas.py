@@ -26,5 +26,5 @@ for nome, email,perfil in usuarios_teste:
 
 print("Usuários e senhas configurados com sucesso")
 print(f"Senha padrão para todos: {SENHA}")
-for nome, emailm perfil in usuarios_teste:
+for nome, email, perfil in usuarios_teste:
     print(f"- {perfil}: {email}")
