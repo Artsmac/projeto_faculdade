@@ -1,27 +1,31 @@
 from decimal import Decimal, InvalidOperation
 from functools import wraps
-from flask import FLask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 from config import SECRET_KEY
 from db import consultar, executar
 
 app = Flask (__name__)
 app.secret_key = SECRET_KEY
-@app.route("/")
-def inicio():
-    return "Controle de Estoque funcionando!"
-if __name__ == "__main__":
-    app.run(debug=True)
 
 # -- controle de acesso
 
 def login_requerido(funcao):
+    @wraps(funcao)
+    def interna(*args, **kwargs):
+        if "id_usuario" not in session:
+            return redirect(url_for("login"))
+        return funcao(*args, **kwargs)
+    return interna
+
+def perfil_requerido(*perfis):
     def decorador(funcao):
         @wraps(funcao)
         def interna(*args, **kwargs):
             if "id_usuario" not in session:
                 return redirect(url_for("login"))
-            if session["perfil"] not in perfis:
+            perfis_permitidos = [p.upper() for p in perfis]
+            if session.get("perfil", "").upper() not in perfis_permitidos:
                 flash("Seu perfil não tem permissão para esta tela.")
                 return redirect(url_for("produtos"))
             return funcao(*args, **kwargs)
@@ -33,6 +37,7 @@ def login_requerido(funcao):
 @app.route("/")
 def index():
     return redirect(url_for("produtos"))
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -63,7 +68,7 @@ def logout():
 @app.route("/produtos")
 @login_requerido
 def produtos():
-    1 = request.args.get("q", "").strip()
+    q = request.args.get("q", "").strip()
     lista = consultar(
         "SELECT nome, frupo, saldo, estoque_minimo, situacao "
         "FROM vw_saldo_produto WHERE nome LIKE %s ORDER BY nome",
@@ -84,16 +89,19 @@ def produto_novo():
         if not nome:
             erros.append("Informe o nome do produto.")
 
+        if not dados.get("id_grupo"):
+            erros.append("Selecione um grupo de produto.")
+
         try:
-            preco = Decimal(dados.get("preco_compra", "").replace(",","."))
+            preco=Decimal(dados.get("preco_compra", "").replace(",", "."))
             if preco < 0:
-                erros.append("O preço não pode ser negativo.")
+                erros.append("O preço não pode ser negativo")
         except InvalidOperation:
-            erros.append("O preço de compra inválido.")
+            erros.append("Preço de compra inválido")
 
         try:
             minimo = int(dados.get("estoque_minimo", ""))
-            if minimo < 0:
+            if minimo <0:
                 erros.append("O estoque mínimo não pode ser negativo.")
         except ValueError:
             erros.append("Estoque mínimo inválido.")
@@ -105,13 +113,18 @@ def produto_novo():
             executar(
                 "INSERT INTO produto"
                 "(nome, id_grupo, preco_compra, perecivel, estoque_minimo) "
-                "VALUES (%s,%s,%s,%s,%s)"
-                (nome, int(dados["id_grupo"]), preco,
-                 "perecivel" in dados, minimo),
+                "VALUES (%s,%s,%s,%s,%s)",
+                (
+                    nome,
+                    int(dados["id_grupo"]),
+                    preco,
+                    "perecivel" in dados,
+                    minimo,
+                ),
             )
-            flash("Produto cadastado com sucesso.")
-            return redirection(url_for("produtos"))
-        return render_template("produto_form.html", grupos=grupos, dados=dados)
+            flash("Produto cadastrado com sucesso.")
+            return redirect(url_for("produtos"))
 
+    return render_template("produto_form.html", grupos=grupos, dados=dados)
 if __name__ == "__main__":
     app.run(debug=True)

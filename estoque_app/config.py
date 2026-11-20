@@ -3,5 +3,5 @@ DB_CONFIG = {
     "port": 3307,
     "user": "root",
     "password": "",
-    "database": "controle_estoque",
+    "database": "db_projeto",
 }
