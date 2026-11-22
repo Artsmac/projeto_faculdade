@@ -107,7 +107,7 @@ def produto_novo():
             erros.append("Informe o codigo SKU do produto.")
         else:
             existente = consultar(
-                "SELECT id_produto FORM tb_produtos WHERE sku = %s"
+                "SELECT id_produto FORM tb_produtos WHERE sku = %s",
                 (sku,),
             )
             if existente:
@@ -175,7 +175,7 @@ def produto_novo():
             flash("Produto cadastrado com sucesso.")
             return redirect(url_for("produtos"))
     return render_template("produto_form.html", daods=dados)
-if __name == "__main__":
+if __name__ == "__main__":
         app.run(debug=True)
 
 #
