@@ -70,9 +70,26 @@ def logout():
 def produtos():
     q = request.args.get("q", "").strip()
     lista = consultar(
-        "SELECT nome, frupo, saldo, estoque_minimo, situacao "
-        "FROM vw_saldo_produto WHERE nome LIKE %s ORDER BY nome",
-        (f"%{q}%",),
+        """
+        SELECT
+            sku,
+            nome,
+            categoria,
+            localizacao,
+            unidade_medida,
+            estoque_atual,
+            estoque_minimo,
+            data_validade,
+            CASE
+                WHEN estoque_atual = 0 THEN 'Sem estoque'
+                WHEN estoque_atual <= estoque_minimo THEN 'Estoque baixo'
+                ELSE 'Normal'
+            END AS situacao
+        FROM tb_produtos
+        WHERE nome LIKE %s OR sku LIKE %s
+        ORDER BY nome
+        """,
+        (f"%{q}%", f"%{q}%"),
     )
     return render_template("produtos.html", produtos=lista, q=q)
 
@@ -85,24 +102,50 @@ def produto_novo():
         dados = request.form
         erros = []
 
+        sku = dados.get("sku", "").strip()
+        if not sku:
+            erros.append("Informe o codigo SKU do produto.")
+        else:
+            existente = consultar(
+                "SELECT id_produto FORM tb_produtos WHERE sku = %s"
+                (sku,),
+            )
+            if existente:
+                erros.append("Já existe um produto cadastrado com este SKU.")
+
         nome = dados.get("nome", "").strip()
         if not nome:
             erros.append("Informe o nome do produto.")
-
-        if not dados.get("id_grupo"):
-            erros.append("Selecione um grupo de produto.")
+        categoria = dados.get("categoria", "").strip() or None
+        localizacao = dados.get("localizacao", "").strip() or None
+        unidade_medida = dados.get("unidade_medida", "").strip() or "un"
+        data_validade = dados.get("data_validade", "").strip() or None
 
         try:
-            preco=Decimal(dados.get("preco_compra", "").replace(",", "."))
-            if preco < 0:
-                erros.append("O preço não pode ser negativo")
+            preco_custo = Decimal(dados.get("preco_custo", "").replace(",", "."))
+            if preco_custo < 0:
+                erros.append("O preço de custo nçao pode ser negativo.")
         except InvalidOperation:
-            erros.append("Preço de compra inválido")
+            erros.append("Preço de custo inválido.")
 
         try:
-            minimo = int(dados.get("estoque_minimo", ""))
-            if minimo <0:
-                erros.append("O estoque mínimo não pode ser negativo.")
+            preco_venda = Decimal(dados.get("preco_venda", "").replace(",", "."))
+            if preco_venda < 0:
+                erros.append("O preço de venda não pode ser negativo.")
+        except ValueError:
+            erros.append("Preço de venda inválido.")
+
+        try:
+            estoque_atual = int(dados.get("estoque_atual", "0"))
+            if estoque_atual < 0:
+                erros.append("O estoque inicial não pode ser negativo")
+        except ValueError:
+            erros.append("Estoque inicial inválido.")
+
+        try:
+            estoque_minimo = int(dados.get("estoque_minimo", "0"))
+            if estoque_minimo < 0:
+                erros.append("O estoque míninmo não pode ser negativo.")
         except ValueError:
             erros.append("Estoque mínimo inválido.")
 
@@ -111,20 +154,67 @@ def produto_novo():
                 flash(erro)
         else:
             executar(
-                "INSERT INTO produto"
-                "(nome, id_grupo, preco_compra, perecivel, estoque_minimo) "
-                "VALUES (%s,%s,%s,%s,%s)",
+                """
+                INSERT INTO tb_produtos
+                (sku, nome, categoria, localizacao, unidade_medida, preco_custo, preco_venda, estoque_atual, estoque_minimo, data_validade)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,
                 (
+                    sku,
                     nome,
-                    int(dados["id_grupo"]),
-                    preco,
-                    "perecivel" in dados,
-                    minimo,
+                    categoria,
+                    localizacao,
+                    unidade_medida,
+                    preco_custo,
+                    preco_venda,
+                    estoque_atual,
+                    estoque_minimo,
+                    data_validade,
                 ),
             )
             flash("Produto cadastrado com sucesso.")
             return redirect(url_for("produtos"))
+    return render_template("produto_form.html", daods=dados)
+if __name == "__main__":
+        app.run(debug=True)
 
-    return render_template("produto_form.html", grupos=grupos, dados=dados)
-if __name__ == "__main__":
-    app.run(debug=True)
+#
+#        if not dados.get("id_grupo"):
+#           erros.append("Selecione um grupo de produto.")
+#
+#        try:
+#           preco=Decimal(dados.get("preco_compra", "").replace(",", "."))
+#           if preco < 0:
+#               erros.append("O preço não pode ser negativo")
+#       except InvalidOperation:
+#           erros.append("Preço de compra inválido")
+#
+#       try:
+#            minimo = int(dados.get("estoque_minimo", ""))
+#            if minimo <0:
+#                erros.append("O estoque mínimo não pode ser negativo.")
+#        except ValueError:
+#            erros.append("Estoque mínimo inválido.")
+#
+#        if erros:
+#            for erro in erros:
+#               flash(erro)
+#        else:
+#            executar(
+#                "INSERT INTO produto"
+#                "(nome, id_grupo, preco_compra, perecivel, estoque_minimo) "
+#                "VALUES (%s,%s,%s,%s,%s)",
+#                (
+#                    nome,
+#                    int(dados["id_grupo"]),
+#                    preco,
+#                    "perecivel" in dados,
+#                    minimo,
+#                ),
+#            )
+#            flash("Produto cadastrado com sucesso.")
+#            return redirect(url_for("produtos"))
+#
+#    return render_template("produto_form.html", grupos=grupos, dados=dados)
+#if __name__ == "__main__":
+#    app.run(debug=True)
