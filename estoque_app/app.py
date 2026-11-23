@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 
-# -- controlo de acesso
+# -- controle de acesso
 
 def login_requerido(funcao):
     @wraps(funcao)
@@ -28,14 +28,14 @@ def perfil_requerido(*perfis):
                 return redirect(url_for("login"))
             perfis_permitidos = [p.upper() for p in perfis]
             if session.get("perfil", "").upper() not in perfis_permitidos:
-                flash("O seu perfil não tem permissão para aceder a este ecrã.")
+                flash("Seu perfil não tem permissão para esta tela.")
                 return redirect(url_for("produtos"))
             return funcao(*args, **kwargs)
         return interna
     return decorador
 
 
-# -- autenticação
+# -- login
 
 @app.route("/")
 def index():
@@ -59,7 +59,7 @@ def login():
             session["nome"] = usuario["nome"]
             session["perfil"] = usuario["perfil_acesso"]
             return redirect(url_for("produtos"))
-        flash("E-mail ou palavra-passe inválidos.")
+        flash("E-mail ou senha inválidos.")
     return render_template("login.html")
 
 
@@ -69,7 +69,7 @@ def logout():
     return redirect(url_for("login"))
 
 
-# -- produtos
+# -- produtos (RF01 e RF05)
 
 @app.route("/produtos")
 @login_requerido
@@ -87,8 +87,8 @@ def produtos():
             estoque_minimo,
             data_validade,
             CASE
-                WHEN estoque_atual = 0 THEN 'Sem stock'
-                WHEN estoque_atual <= estoque_minimo THEN 'Stock baixo'
+                WHEN estoque_atual = 0 THEN 'Sem estoque'
+                WHEN estoque_atual <= estoque_minimo THEN 'Estoque baixo'
                 ELSE 'Normal'
             END AS situacao
         FROM tb_produtos
@@ -110,18 +110,18 @@ def produto_novo():
 
         sku = dados.get("sku", "").strip()
         if not sku:
-            erros.append("Indique o código SKU do produto.")
+            erros.append("Informe o código SKU do produto.")
         else:
             existente = consultar(
                 "SELECT id_produto FROM tb_produtos WHERE sku = %s",
                 (sku,),
             )
             if existente:
-                erros.append("Já existe um produto registado com este SKU.")
+                erros.append("Já existe um produto cadastrado com este SKU.")
 
         nome = dados.get("nome", "").strip()
         if not nome:
-            erros.append("Indique o nome do produto.")
+            erros.append("Informe o nome do produto.")
 
         categoria = dados.get("categoria", "").strip() or None
         localizacao = dados.get("localizacao", "").strip() or None
@@ -145,16 +145,16 @@ def produto_novo():
         try:
             estoque_atual = int(dados.get("estoque_atual", "0"))
             if estoque_atual < 0:
-                erros.append("O stock inicial não pode ser negativo.")
+                erros.append("O estoque inicial não pode ser negativo.")
         except ValueError:
-            erros.append("Stock inicial inválido.")
+            erros.append("Estoque inicial inválido.")
 
         try:
             estoque_minimo = int(dados.get("estoque_minimo", "0"))
             if estoque_minimo < 0:
-                erros.append("O stock mínimo não pode ser negativo.")
+                erros.append("O estoque mínimo não pode ser negativo.")
         except ValueError:
-            erros.append("Stock mínimo inválido.")
+            erros.append("Estoque mínimo inválido.")
 
         if erros:
             for erro in erros:
@@ -180,13 +180,13 @@ def produto_novo():
                     data_validade,
                 ),
             )
-            flash("Produto registado com sucesso.")
+            flash("Produto cadastrado com sucesso.")
             return redirect(url_for("produtos"))
 
     return render_template("produto_form.html", dados=dados)
 
 
-# -- movimentações (entradas e saídas)
+# -- entradas e saídas (RF02, RF03 e RN01)
 
 @app.route("/entradas", methods=["GET", "POST"])
 @perfil_requerido("ESTOQUISTA", "GERENTE")
@@ -202,7 +202,7 @@ def entradas():
             quantidade = 0
 
         if not id_produto or quantidade <= 0:
-            flash("Selecione um produto e indique uma quantidade superior a zero.")
+            flash("Selecione um produto e informe uma quantidade maior que zero.")
         else:
             executar(
                 """
@@ -215,7 +215,7 @@ def entradas():
                 "UPDATE tb_produtos SET estoque_atual = estoque_atual + %s WHERE id_produto = %s",
                 (quantidade, id_produto),
             )
-            flash("Entrada registada e saldo atualizado com sucesso.")
+            flash("Entrada registrada e saldo atualizado com sucesso.")
             return redirect(url_for("entradas"))
 
     produtos_lista = consultar(
@@ -255,9 +255,9 @@ def saidas():
             quantidade = 0
 
         if not id_produto or quantidade <= 0:
-            flash("Selecione um produto e indique uma quantidade superior a zero.")
+            flash("Selecione um produto e informe uma quantidade maior que zero.")
         elif not motivo:
-            flash("Indique o motivo da saída (ex.: venda, consumo interno ou perda).")
+            flash("Informe o motivo da saída (ex: Venda balcão, consumo interno ou perda).")
         else:
             produto = consultar(
                 "SELECT nome, estoque_atual, unidade_medida FROM tb_produtos WHERE id_produto = %s",
@@ -266,7 +266,6 @@ def saidas():
             if not produto:
                 flash("Produto não encontrado.")
             elif quantidade > produto[0]["estoque_atual"]:
-                # Regra de Negócio RN01: Trava de Stock Negativo
                 flash(
                     f"Bloqueado (RN01): Saldo insuficiente para '{produto[0]['nome']}'. "
                     f"Disponível: {produto[0]['estoque_atual']} {produto[0]['unidade_medida']}."
@@ -283,7 +282,7 @@ def saidas():
                     "UPDATE tb_produtos SET estoque_atual = estoque_atual - %s WHERE id_produto = %s",
                     (quantidade, id_produto),
                 )
-                flash("Saída registada e saldo atualizado com sucesso.")
+                flash("Saída registrada e saldo atualizado com sucesso.")
                 return redirect(url_for("saidas"))
 
     produtos_lista = consultar(
@@ -309,28 +308,25 @@ def saidas():
     return render_template("saidas.html", produtos=produtos_lista, historico=historico)
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
-
-# -- reposicao e alertas (RF04 e RN02 - PEPS)
+# -- reposição e alertas (RF04 e RN02 - PEPS)
 
 @app.route("/alertas")
 @login_requerido
 def alertas():
     estoque_baixo = consultar(
-    """
-    SELECT
-        sku,
-        nome,
-        categoria,
-        localizacao,
-        unidade_medida,
-        estoque_atual,
-        estoque_minimo
-    FROM tb_produtos
-    WHERE estoque_atual <= estoque_minimo
-    ORDER BY (estoque_atual - estoque_minimo) ASC, nome ASC
-    """
+        """
+        SELECT
+            sku,
+            nome,
+            categoria,
+            localizacao,
+            unidade_medida,
+            estoque_atual,
+            estoque_minimo
+        FROM tb_produtos
+        WHERE estoque_atual <= estoque_minimo
+        ORDER BY (estoque_atual - estoque_minimo) ASC, nome ASC
+        """
     )
     validade_proxima = consultar(
         """
@@ -342,11 +338,12 @@ def alertas():
             unidade_medida,
             estoque_atual,
             data_validade,
-            DATEDIF(data_validade, CURDATE()) AS dias_restantes
+            DATEDIFF(data_validade, CURDATE()) AS dias_restantes
         FROM tb_produtos
         WHERE data_validade IS NOT NULL
-            AND estoque_atual > 0
-            AND data_validade <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+          AND estoque_atual > 0
+          AND data_validade <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        ORDER BY data_validade ASC
         """
     )
     return render_template(
@@ -355,14 +352,15 @@ def alertas():
         validade_proxima=validade_proxima,
     )
 
-# -- area gerencial e auditoria (RN03)
+
+# -- área gerencial e auditoria (RN03)
 
 @app.route("/gerencial", methods=["GET", "POST"])
 @perfil_requerido("GERENTE")
 def gerencial():
     if request.method == "POST":
         id_produto = request.form.get("id_produto", "").strip()
-        justificativa = request.form.get("jusitificativa", "").strip()
+        justificativa = request.form.get("justificativa", "").strip()
         senha_confirmacao = request.form.get("senha_confirmacao", "")
 
         try:
@@ -371,16 +369,16 @@ def gerencial():
             quantidade_contada = -1
 
         if not id_produto or quantidade_contada < 0:
-            flash("Selecione um produto e informe uma quantidade fisica valida. (0 ou maior)")
+            flash("Selecione um produto e informe uma quantidade física válida (0 ou maior).")
         elif not justificativa:
-            flash("A justificativa é obirgatória para auditoria.")
+            flash("A justificativa é obrigatória para auditoria (RN03).")
         else:
             gerente = consultar(
-                "SELECT senha FROM tb_usuarios WHERE id_usuario %s",
+                "SELECT senha FROM tb_usuarios WHERE id_usuario = %s",
                 (session["id_usuario"],),
             )
             if not gerente or not check_password_hash(gerente[0]["senha"], senha_confirmacao):
-                flash("Bloqueado: Senha do gerente incorreta.")
+                flash("Bloqueado (RN03): Senha do gerente incorreta.")
             else:
                 executar(
                     """
@@ -392,9 +390,9 @@ def gerencial():
                 )
                 executar(
                     "UPDATE tb_produtos SET estoque_atual = %s WHERE id_produto = %s",
-                    (quantidade_contada, id_produto)
+                    (quantidade_contada, id_produto),
                 )
-                flash("Ajsute gerencial gravado no log de auditoria e saldo atualizado.")
+                flash("Ajuste gerencial gravado no log de auditoria e saldo atualizado.")
                 return redirect(url_for("gerencial"))
 
     produtos_lista = consultar(
@@ -403,10 +401,10 @@ def gerencial():
     historico = consultar(
         """
         SELECT
-            a.data_hora
+            a.data_hora,
             p.sku,
             p.nome AS produto,
-            p.unidade_medida_
+            p.unidade_medida,
             a.quantidade_contada,
             a.justificativa,
             u.nome AS responsavel
@@ -418,3 +416,7 @@ def gerencial():
         """
     )
     return render_template("gerencial.html", produtos=produtos_lista, historico=historico)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
