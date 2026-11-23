@@ -5,10 +5,11 @@ from werkzeug.security import check_password_hash
 from config import SECRET_KEY
 from db import consultar, executar
 
-app = Flask (__name__)
+app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
-# -- controle de acesso
+
+# -- controlo de acesso
 
 def login_requerido(funcao):
     @wraps(funcao)
@@ -18,6 +19,7 @@ def login_requerido(funcao):
         return funcao(*args, **kwargs)
     return interna
 
+
 def perfil_requerido(*perfis):
     def decorador(funcao):
         @wraps(funcao)
@@ -26,17 +28,19 @@ def perfil_requerido(*perfis):
                 return redirect(url_for("login"))
             perfis_permitidos = [p.upper() for p in perfis]
             if session.get("perfil", "").upper() not in perfis_permitidos:
-                flash("Seu perfil não tem permissão para esta tela.")
+                flash("O seu perfil não tem permissão para aceder a este ecrã.")
                 return redirect(url_for("produtos"))
             return funcao(*args, **kwargs)
         return interna
     return decorador
 
-# -- login
+
+# -- autenticação
 
 @app.route("/")
 def index():
     return redirect(url_for("produtos"))
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -55,13 +59,15 @@ def login():
             session["nome"] = usuario["nome"]
             session["perfil"] = usuario["perfil_acesso"]
             return redirect(url_for("produtos"))
-        flash("E-mail ou senha inválidos.")
+        flash("E-mail ou palavra-passe inválidos.")
     return render_template("login.html")
+
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
 
 # -- produtos
 
@@ -81,8 +87,8 @@ def produtos():
             estoque_minimo,
             data_validade,
             CASE
-                WHEN estoque_atual = 0 THEN 'Sem estoque'
-                WHEN estoque_atual <= estoque_minimo THEN 'Estoque baixo'
+                WHEN estoque_atual = 0 THEN 'Sem stock'
+                WHEN estoque_atual <= estoque_minimo THEN 'Stock baixo'
                 ELSE 'Normal'
             END AS situacao
         FROM tb_produtos
@@ -93,10 +99,10 @@ def produtos():
     )
     return render_template("produtos.html", produtos=lista, q=q)
 
+
 @app.route("/produtos/novo", methods=["GET", "POST"])
 @perfil_requerido("ESTOQUISTA", "GERENTE")
 def produto_novo():
-    grupos = consultar("SELECT id_grupo, nome FROM grupo_produto ORDER BY nome")
     dados = {}
     if request.method == "POST":
         dados = request.form
@@ -104,27 +110,28 @@ def produto_novo():
 
         sku = dados.get("sku", "").strip()
         if not sku:
-            erros.append("Informe o codigo SKU do produto.")
+            erros.append("Indique o código SKU do produto.")
         else:
             existente = consultar(
                 "SELECT id_produto FROM tb_produtos WHERE sku = %s",
                 (sku,),
             )
             if existente:
-                erros.append("Já existe um produto cadastrado com este SKU.")
+                erros.append("Já existe um produto registado com este SKU.")
 
         nome = dados.get("nome", "").strip()
         if not nome:
-            erros.append("Informe o nome do produto.")
+            erros.append("Indique o nome do produto.")
+
         categoria = dados.get("categoria", "").strip() or None
         localizacao = dados.get("localizacao", "").strip() or None
-        unidade_medida = dados.get("unidade_medida", "").strip() or "un"
+        unidade_medida = dados.get("unidade_medida", "un").strip() or "un"
         data_validade = dados.get("data_validade", "").strip() or None
 
         try:
             preco_custo = Decimal(dados.get("preco_custo", "").replace(",", "."))
             if preco_custo < 0:
-                erros.append("O preço de custo nçao pode ser negativo.")
+                erros.append("O preço de custo não pode ser negativo.")
         except InvalidOperation:
             erros.append("Preço de custo inválido.")
 
@@ -132,22 +139,22 @@ def produto_novo():
             preco_venda = Decimal(dados.get("preco_venda", "").replace(",", "."))
             if preco_venda < 0:
                 erros.append("O preço de venda não pode ser negativo.")
-        except ValueError:
+        except InvalidOperation:
             erros.append("Preço de venda inválido.")
 
         try:
             estoque_atual = int(dados.get("estoque_atual", "0"))
             if estoque_atual < 0:
-                erros.append("O estoque inicial não pode ser negativo")
+                erros.append("O stock inicial não pode ser negativo.")
         except ValueError:
-            erros.append("Estoque inicial inválido.")
+            erros.append("Stock inicial inválido.")
 
         try:
             estoque_minimo = int(dados.get("estoque_minimo", "0"))
             if estoque_minimo < 0:
-                erros.append("O estoque míninmo não pode ser negativo.")
+                erros.append("O stock mínimo não pode ser negativo.")
         except ValueError:
-            erros.append("Estoque mínimo inválido.")
+            erros.append("Stock mínimo inválido.")
 
         if erros:
             for erro in erros:
@@ -156,8 +163,9 @@ def produto_novo():
             executar(
                 """
                 INSERT INTO tb_produtos
-                (sku, nome, categoria, localizacao, unidade_medida, preco_custo, preco_venda, estoque_atual, estoque_minimo, data_validade)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                (sku, nome, categoria, localizacao, unidade_medida,
+                 preco_custo, preco_venda, estoque_atual, estoque_minimo, data_validade)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     sku,
@@ -172,49 +180,134 @@ def produto_novo():
                     data_validade,
                 ),
             )
-            flash("Produto cadastrado com sucesso.")
+            flash("Produto registado com sucesso.")
             return redirect(url_for("produtos"))
-    return render_template("produto_form.html", daods=dados)
-if __name__ == "__main__":
-        app.run(debug=True)
 
-#
-#        if not dados.get("id_grupo"):
-#           erros.append("Selecione um grupo de produto.")
-#
-#        try:
-#           preco=Decimal(dados.get("preco_compra", "").replace(",", "."))
-#           if preco < 0:
-#               erros.append("O preço não pode ser negativo")
-#       except InvalidOperation:
-#           erros.append("Preço de compra inválido")
-#
-#       try:
-#            minimo = int(dados.get("estoque_minimo", ""))
-#            if minimo <0:
-#                erros.append("O estoque mínimo não pode ser negativo.")
-#        except ValueError:
-#            erros.append("Estoque mínimo inválido.")
-#
-#        if erros:
-#            for erro in erros:
-#               flash(erro)
-#        else:
-#            executar(
-#                "INSERT INTO produto"
-#                "(nome, id_grupo, preco_compra, perecivel, estoque_minimo) "
-#                "VALUES (%s,%s,%s,%s,%s)",
-#                (
-#                    nome,
-#                    int(dados["id_grupo"]),
-#                    preco,
-#                    "perecivel" in dados,
-#                    minimo,
-#                ),
-#            )
-#            flash("Produto cadastrado com sucesso.")
-#            return redirect(url_for("produtos"))
-#
-#    return render_template("produto_form.html", grupos=grupos, dados=dados)
-#if __name__ == "__main__":
-#    app.run(debug=True)
+    return render_template("produto_form.html", dados=dados)
+
+
+# -- movimentações (entradas e saídas)
+
+@app.route("/entradas", methods=["GET", "POST"])
+@perfil_requerido("ESTOQUISTA", "GERENTE")
+def entradas():
+    if request.method == "POST":
+        id_produto = request.form.get("id_produto", "").strip()
+        numero_lote_nf = request.form.get("numero_lote_nf", "").strip() or None
+        motivo = request.form.get("motivo", "").strip() or "Compra / Reposição"
+
+        try:
+            quantidade = int(request.form.get("quantidade", "0"))
+        except ValueError:
+            quantidade = 0
+
+        if not id_produto or quantidade <= 0:
+            flash("Selecione um produto e indique uma quantidade superior a zero.")
+        else:
+            executar(
+                """
+                INSERT INTO tb_entradas (id_produto, id_usuario, quantidade, numero_lote_nf, motivo)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (id_produto, session["id_usuario"], quantidade, numero_lote_nf, motivo),
+            )
+            executar(
+                "UPDATE tb_produtos SET estoque_atual = estoque_atual + %s WHERE id_produto = %s",
+                (quantidade, id_produto),
+            )
+            flash("Entrada registada e saldo atualizado com sucesso.")
+            return redirect(url_for("entradas"))
+
+    produtos_lista = consultar(
+        "SELECT id_produto, sku, nome, estoque_atual, unidade_medida FROM tb_produtos ORDER BY nome"
+    )
+    historico = consultar(
+        """
+        SELECT
+            e.data_hora,
+            p.sku,
+            p.nome AS produto,
+            p.unidade_medida,
+            e.quantidade,
+            e.numero_lote_nf,
+            e.motivo,
+            u.nome AS usuario
+        FROM tb_entradas e
+        JOIN tb_produtos p ON p.id_produto = e.id_produto
+        JOIN tb_usuarios u ON u.id_usuario = e.id_usuario
+        ORDER BY e.data_hora DESC
+        LIMIT 20
+        """
+    )
+    return render_template("entradas.html", produtos=produtos_lista, historico=historico)
+
+
+@app.route("/saidas", methods=["GET", "POST"])
+@perfil_requerido("ESTOQUISTA", "GERENTE")
+def saidas():
+    if request.method == "POST":
+        id_produto = request.form.get("id_produto", "").strip()
+        motivo = request.form.get("motivo", "").strip()
+
+        try:
+            quantidade = int(request.form.get("quantidade", "0"))
+        except ValueError:
+            quantidade = 0
+
+        if not id_produto or quantidade <= 0:
+            flash("Selecione um produto e indique uma quantidade superior a zero.")
+        elif not motivo:
+            flash("Indique o motivo da saída (ex.: venda, consumo interno ou perda).")
+        else:
+            produto = consultar(
+                "SELECT nome, estoque_atual, unidade_medida FROM tb_produtos WHERE id_produto = %s",
+                (id_produto,),
+            )
+            if not produto:
+                flash("Produto não encontrado.")
+            elif quantidade > produto[0]["estoque_atual"]:
+                # Regra de Negócio RN01: Trava de Stock Negativo
+                flash(
+                    f"Bloqueado (RN01): Saldo insuficiente para '{produto[0]['nome']}'. "
+                    f"Disponível: {produto[0]['estoque_atual']} {produto[0]['unidade_medida']}."
+                )
+            else:
+                executar(
+                    """
+                    INSERT INTO tb_saidas (id_produto, id_usuario, quantidade, motivo)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (id_produto, session["id_usuario"], quantidade, motivo),
+                )
+                executar(
+                    "UPDATE tb_produtos SET estoque_atual = estoque_atual - %s WHERE id_produto = %s",
+                    (quantidade, id_produto),
+                )
+                flash("Saída registada e saldo atualizado com sucesso.")
+                return redirect(url_for("saidas"))
+
+    produtos_lista = consultar(
+        "SELECT id_produto, sku, nome, estoque_atual, unidade_medida FROM tb_produtos ORDER BY nome"
+    )
+    historico = consultar(
+        """
+        SELECT
+            s.data_hora,
+            p.sku,
+            p.nome AS produto,
+            p.unidade_medida,
+            s.quantidade,
+            s.motivo,
+            u.nome AS usuario
+        FROM tb_saidas s
+        JOIN tb_produtos p ON p.id_produto = s.id_produto
+        JOIN tb_usuarios u ON u.id_usuario = s.id_usuario
+        ORDER BY s.data_hora DESC
+        LIMIT 20
+        """
+    )
+    return render_template("saidas.html", produtos=produtos_lista, historico=historico)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
