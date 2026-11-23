@@ -1,32 +1,70 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-   <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1,0">
-      <title>Login - StockFlow</title>
-   </head>
-   <body>
-      <h1>StockFLow - Acesso ao Sistema</h1>
-      {% with mensagens = get_flashed_messages() %}
-         {%if mensagens%}
-         <ul>
-            {%for msg in mensagens%}
-            <li><strong>{{msg}}</strong></li>
-            {%endfor%}
-         </ul>
-         {%endif%}
-      {%endwith%}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso ao Sistema - StockFlow</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", system-ui, sans-serif; }
+        body {
+            background: #f4f6fb; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .login-card {
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px;
+            padding: 36px 32px; width: 100%; max-width: 400px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+        }
+        .logo {
+            width: 48px; height: 48px; border-radius: 14px; background: #4f46e5;
+            color: #fff; font-weight: 800; font-size: 20px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+        }
+        h1 { font-size: 22px; color: #0f172a; margin-bottom: 4px; }
+        p.sub { font-size: 13px; color: #64748b; margin-bottom: 22px; }
+        label {
+            display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+            color: #64748b; margin-bottom: 6px; letter-spacing: 0.04em;
+        }
+        input {
+            width: 100%; padding: 11px 13px; border: 1px solid #e2e8f0;
+            border-radius: 10px; background: #f8fafc; font-size: 14px; margin-bottom: 16px;
+        }
+        input:focus { outline: none; border-color: #4f46e5; background: #fff; }
+        button {
+            width: 100%; padding: 12px; border: none; border-radius: 11px;
+            background: #4f46e5; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+        }
+        button:hover { background: #4338ca; }
+        .alert {
+            background: #fee2e2; color: #b91c1c; padding: 10px 12px;
+            border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">SF</div>
+        <h1>StockFlow</h1>
+        <p class="sub">Entre com suas credenciais para acessar o controle de estoque</p>
 
-      <form method="post">
-         <p>
-            <label for="email">E-mail</label><br>
+        {% with mensagens = get_flashed_messages() %}
+            {% if mensagens %}
+                {% for msg in mensagens %}
+                    <div class="alert">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            <label for="email">E-mail Corporativo</label>
             <input type="email" id="email" name="email" placeholder="carlos.souza@empresa.com.br" required>
-         </p>
-         <p>
-            <label for="senha">Senha:</label><br>
-            <input type="password" id="senha" name="senha" required>
-         </p>
-         <button type="submit">Entrar</button>
-      </form>
-   </body>
+
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" placeholder="••••••" required>
+
+            <button type="submit">Entrar no Sistema</button>
+        </form>
+    </div>
+</body>
 </html>

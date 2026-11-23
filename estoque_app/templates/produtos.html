@@ -1,73 +1,73 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Produtos</title>
-    </head>
-    <body>
-        <p>
-            {{ session['nome'] }} ({{ session['perfil'] }})
-            | <a href="{{ url_for('produtos') }}">Produtos</a>
-            {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
-                | <a href="{{ url_for('entradas') }}">Entradas</a>
-                | <a href="{{ url_for('saidas') }}">Saídas</a>
-            {% endif %}
-            | <a href="{{ url_for('alertas') }}">Reposição &amp; Alertas</a>
-            {% if session.get('perfil', '').upper() == 'GERENTE' %}
-                | <a href="{{ url_for('gerencial') }}">Área Gerencial</a>
-            {% endif %}
-            | <a href="{{ url_for('logout') }}">Sair</a>
-        </p>
-        {% with mensagens = get_flashed_messages() %}
-            {% if mensagens %}
-                <ul>
-                    {% for msg in mensagens %}
-                    <li><strong>{{ msg }}</strong></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
+{% extends "base.html" %}
+{% block title %}Consulta de Saldo - StockFlow{% endblock %}
+{% block page_title %}Consulta de Saldo{% endblock %}
+{% block page_subtitle %}Visualize e gerencie a quantidade física de produtos em tempo real (RF05){% endblock %}
 
-        <h1>Produtos</h1>
-        <form method="get">
-            <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nome ou SKU">
-            <button type="submit">Buscar</button>
+{% block content %}
+    <div class="card">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div>
+                <div class="card-title">Filtro Rápido de Inventário</div>
+                <div class="card-sub" style="margin-bottom: 0;">{{ produtos|length }} item(ns) encontrado(s)</div>
+            </div>
             {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
-                <a href="{{url_for('produto_novo')}}">+ Novo Produto</a>
+                <a href="{{ url_for('produto_novo') }}" class="btn btn-primary">+ Cadastrar Produto</a>
+            {% endif %}
+        </div>
+
+        <form method="get" action="{{ url_for('produtos') }}" style="display: flex; gap: 10px;">
+            <input type="text" name="q" value="{{ q }}" placeholder="Filtrar por nome ou código SKU...">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            {% if q %}
+                <a href="{{ url_for('produtos') }}" class="btn btn-outline">Limpar</a>
             {% endif %}
         </form>
+    </div>
 
-        <br>
-
-        <table border="1" cellpadding="8">
-            <thead>
-                <tr>
-                    <th>Produto</th>
-                    <th>Grupo</th>
-                    <th>Saldo</th>
-                    <th>Minimo</th>
-                    <th>Situação</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for produto in produtos %}
-                <tr>
-                    <td>{{ produto.sku }}</td>
-                    <td>{{ produto.nome }}</td>
-                    <td>{{ produto.categoria or '-' }}</td>
-                    <td>{{ produto.localizacao or '-' }}</td>
-                    <td>{{ produto.estoque_atual }}</td>
-                    <td>{{ produto.estoque_minimo }}</td>
-                    <td>{{ produto.data_validade or '-' }}</td>
-                    <td>{{ produto.situacao }}</td>
-                </tr>
-            {% else %}
-                <tr>
-                    <td colspan="8">Nenhum produto encontrado.</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </body>
-</html>
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Nome do Produto</th>
+                        <th>Categoria</th>
+                        <th>Localização</th>
+                        <th>Saldo Atual</th>
+                        <th>Mínimo</th>
+                        <th>Validade</th>
+                        <th>Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produtos %}
+                        <tr>
+                            <td><span class="badge badge-info">{{ p.sku }}</span></td>
+                            <td><strong>{{ p.nome }}</strong></td>
+                            <td>{{ p.categoria or '-' }}</td>
+                            <td>{{ p.localizacao or '-' }}</td>
+                            <td><strong>{{ p.estoque_atual }} {{ p.unidade_medida }}</strong></td>
+                            <td>{{ p.estoque_minimo }} {{ p.unidade_medida }}</td>
+                            <td>{{ p.data_validade or '-' }}</td>
+                            <td>
+                                {% if p.estoque_atual == 0 %}
+                                    <span class="badge badge-danger">{{ p.situacao }}</span>
+                                {% elif p.estoque_atual <= p.estoque_minimo %}
+                                    <span class="badge badge-warn">{{ p.situacao }}</span>
+                                {% else %}
+                                    <span class="badge badge-ok">{{ p.situacao }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 28px; color: var(--text-muted);">
+                                Nenhum produto encontrado no inventário.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

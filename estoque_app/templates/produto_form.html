@@ -1,72 +1,74 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-   <head>
-      <meta chasert="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Novo Produto - StockFLow</title>
-   </head>
-   <body>
-      <p>
-         {{session['nome']}} ({{session['perfil']}})
-         | <a href="{{url_for('produtos')}}">Voltar para Produtos</a>
-         | <a href="{{url_for('logout')}}">Sair</a>
-      </p>
-      <h1>Cadastro de Produto</h1>
-      {% with mensagens = get_flashed_messages() %}
-         {% if mensagens %}
-         <ul>
-            {% for msg in mensagens %}
-            <li><strong>{{msg}}</strong></li>
-            {%endfor%}
-         </ul>
-         {%endif%}
-      {{% endwith %}}
+{% extends "base.html" %}
+{% block title %}Cadastro de Produtos - StockFlow{% endblock %}
+{% block page_title %}Cadastro de Produtos{% endblock %}
+{% block page_subtitle %}Inclusão de novas mercadorias no catálogo com parametrização de estoque mínimo (RF01){% endblock %}
 
-      <form method="post">
-         <p>
-            <label for="categoria">Categoria:</label><br>
-            <select name="categoria" id="categoria">
-               <option value="Mercearia" {% if dados.get('categoria') == 'Mercearia' %}selected{%endif%}>Mercearia</option>
-               <option value="Bebidas" {% if dados.get('categoria') == 'Bebidas' %}selected{%endif%}>Bebidas</option>
-               <option value="Limpeza" {% if dados.get('categoria') == 'Limpeza' %}selected{%endif%}>Limpeza</option>
-               <option value="Laticinios" {if dados.get('categoria') == 'Laticinios' %}selected{%endif%}>Laticinios</option>
-               <option value="Outros" {% if dados.get('categoria') == 'Outros' %}selected{%endif%}>Outros</option>
-            </select>
-         </p>
-         <p>
-            <label for="localizacao">Localização Física:</label><br>
-            <input type="text" id="localizacao" name="localizacao" value="{{dados.get('localizacao', '')}}" placeholder="Ex: Corredor A">
-         </p>
-         <p>
-            <label for="unidade_medida">Unidade de Medida *:</label><br>
-            <select name="unidade_medida" id="unidade_medida">
-               <option value="un" {% if dados.get('unidade_medida') == 'un' %}selected{%endif%}>Unidade (un)</option>
-               <option value="Kg" {% if dados.get('unidade_medida') == 'Kg' %}selcted{%endif%}>Quilograma (Kg)</option>
-               <option value="L" {% if dados.get('unidade_medida') == 'L' %}selected{%endif%}>Litro (L)</option>
-               <option value="cx" {% if dados.get('unidade_medida') == 'cx' %}selected{%endif%}>Caixa (cs)</option>
-            </select>
-         </p>
-         <p>
-            <label for="preco_custo">Preço de Custo (R$) *:</label><br>
-            <input type="text" name="preco_custo" id="preco_custo" value="{{dados.get('preco_custo', '')}}" placeholder="0,00" required>
-         </p>
-         <p>
-            <label for="preco_venda">Preço de Venda (R$) *:</label><br>
-            <input type="text" name="preco_venda" id="preco_venda" value="{{dados.get('preco_venda', '')}}" placeholder="0,00" required>
-         </p>
-         <p>
-            <label for="estoque_atual">Estoque Atual *:</label><br>
-            <input type="text" name="estoque_atual" id="estoque_atual" min="0" value="{{dados.get('estoque_atual', '')}}" required>
-         </p>
-         <p>
-            <label for="estoque_minimo">Estoque Minimo (Alerta) *:</label><br>
-            <input type="text" name="estoque_minimo" id="estoque_minimo" min="0" value="{{dados.get('estoque_minimo', '')}}" required>
-         </p>
-         <p>
-            <label for="data_validade">Data de Validade (Opcional):</label><br>
-            <input type="text" name="data_validade" id="data_validade" value="{{dados.get('data_validade', '')}}">
-         </p>
-         <button type="submit">Salvar Produto</button>
-      </form>
-   </body>
-</html>
+{% block content %}
+    <div class="card" style="max-width: 780px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+            <div>
+                <div class="card-title">Novo Item de Estoque</div>
+                <div class="card-sub" style="margin-bottom: 0;">Preencha os dados obrigatórios marcados com *</div>
+            </div>
+            <a href="{{ url_for('produtos') }}" class="btn btn-outline">Ver Tabela de Saldo</a>
+        </div>
+
+        <form method="post">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="sku">Código SKU / Barras *</label>
+                    <input type="text" id="sku" name="sku" value="{{ dados.get('sku', '') }}" placeholder="Ex: PRD-001" required>
+                </div>
+                <div class="form-group">
+                    <label for="categoria">Categoria</label>
+                    <input type="text" id="categoria" name="categoria" value="{{ dados.get('categoria', '') }}" placeholder="Ex: Mercearia, Bebidas, Limpeza">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="nome">Nome Completo do Produto *</label>
+                <input type="text" id="nome" name="nome" value="{{ dados.get('nome', '') }}" placeholder="Ex: Arroz Tipo 1 Especial 5kg" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="localizacao">Localização Física</label>
+                    <input type="text" id="localizacao" name="localizacao" value="{{ dados.get('localizacao', '') }}" placeholder="Ex: Corredor A - Prateleira 2">
+                </div>
+                <div class="form-group">
+                    <label for="unidade_medida">Unidade de Medida</label>
+                    <input type="text" id="unidade_medida" name="unidade_medida" value="{{ dados.get('unidade_medida', 'un') }}" placeholder="un, kg, cx, lt">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="preco_custo">Preço de Custo (R$) *</label>
+                    <input type="text" id="preco_custo" name="preco_custo" value="{{ dados.get('preco_custo', '') }}" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="preco_venda">Preço de Venda (R$) *</label>
+                    <input type="text" id="preco_venda" name="preco_venda" value="{{ dados.get('preco_venda', '') }}" placeholder="0.00" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="estoque_atual">Estoque Inicial *</label>
+                    <input type="number" id="estoque_atual" name="estoque_atual" min="0" value="{{ dados.get('estoque_atual', '0') }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="estoque_minimo">Estoque Mínimo (Alerta) *</label>
+                    <input type="number" id="estoque_minimo" name="estoque_minimo" min="0" value="{{ dados.get('estoque_minimo', '5') }}" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="data_validade">Data de Validade (Opcional — para controle PEPS)</label>
+                <input type="date" id="data_validade" name="data_validade" value="{{ dados.get('data_validade', '') }}">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Salvar e Adicionar ao Estoque</button>
+        </form>
+    </div>
+{% endblock %}

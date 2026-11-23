@@ -1,95 +1,87 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reposição e Alertas - StockFlow</title>
-    </head>
-    <body>
-        <p>
-            {{ session['nome'] }} ({{ session['perfil'] }})
-            | <a href="{{ url_for('produtos') }}">Produtos</a>
-            {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
-                | <a href="{{ url_for('entradas') }}">Entradas</a>
-                | <a href="{{ url_for('saidas') }}">Saídas</a>
-            {% endif %}
-            | <a href="{{ url_for('alertas') }}">Reposição &amp; Alertas</a>
-            {% if session.get('perfil', '').upper() == 'GERENTE' %}
-                | <a href="{{ url_for('gerencial') }}">Área Gerencial</a>
-            {% endif %}
-            | <a href="{{ url_for('logout') }}">Sair</a>
-        </p>
+{% extends "base.html" %}
+{% block title %}Reposição & Alertas - StockFlow{% endblock %}
+{% block page_title %}Reposição &amp; Alertas{% endblock %}
+{% block page_subtitle %}Acompanhamento de estoque mínimo e previsão de produtos a vencer (RF04 / RN02){% endblock %}
 
-        <h1>Reposição &amp; Alertas</h1>
-        <p>
-            <strong>Estoque Baixo:</strong> {{ estoque_baixo|length }} itens |
-            <strong>Validade Crítica (30 dias):</strong> {{ validade_proxima|length }} itens
-        </p>
+{% block content %}
+    <div class="card" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+        <div>
+            <div class="card-title">Central de Alertas &amp; Reposição</div>
+            <div class="card-sub" style="margin-bottom: 0;">Monitoramento automatizado de segurança para evitar ruptura de estoque e perdas por validade</div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <span class="badge badge-danger" style="padding: 8px 14px; font-size: 13px;">ESTOQUE BAIXO: {{ estoque_baixo|length }} itens</span>
+            <span class="badge badge-warn" style="padding: 8px 14px; font-size: 13px;">VALIDADE CRÍTICA: {{ validade_proxima|length }} itens</span>
+        </div>
+    </div>
 
-        <h2>Itens Abaixo do Mínimo (RF04)</h2>
-        <table border="1" cellpadding="8">
-            <thead>
-                <tr>
-                    <th>SKU</th>
-                    <th>Produto</th>
-                    <th>Localização</th>
-                    <th>Saldo Atual</th>
-                    <th>Estoque Mínimo</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in estoque_baixo %}
-                    <tr>
-                        <td>{{ item.sku }}</td>
-                        <td>{{ item.nome }}</td>
-                        <td>{{ item.localizacao or '-' }}</td>
-                        <td><strong>{{ item.estoque_atual }} {{ item.unidade_medida }}</strong></td>
-                        <td>{{ item.estoque_minimo }} {{ item.unidade_medida }}</td>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <td colspan="5">Tudo em ordem! Nenhum produto está abaixo do estoque mínimo.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="grid-equal">
+        <div class="card">
+            <div class="card-title">Itens Abaixo do Mínimo (RF04)</div>
+            <div class="card-sub">Produtos que atingiram ou ficaram abaixo do ponto de pedido</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Local</th>
+                            <th>Atual / Mín.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in estoque_baixo %}
+                            <tr>
+                                <td><strong>{{ item.nome }}</strong><br><small style="color: var(--text-muted);">{{ item.sku }}</small></td>
+                                <td>{{ item.localizacao or '-' }}</td>
+                                <td><span class="badge badge-danger">{{ item.estoque_atual }} / {{ item.estoque_minimo }} {{ item.unidade_medida }}</span></td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                                    <strong>Tudo em ordem!</strong> Nenhum produto está abaixo do estoque mínimo.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-        <h2>Vencimento Próximo — Atenção PEPS (RN02)</h2>
-        <table border="1" cellpadding="8">
-            <thead>
-                <tr>
-                    <th>SKU</th>
-                    <th>Produto</th>
-                    <th>Localização</th>
-                    <th>Saldo em Lote</th>
-                    <th>Data de Validade</th>
-                    <th>Situação</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in validade_proxima %}
-                    <tr>
-                        <td>{{ item.sku }}</td>
-                        <td>{{ item.nome }}</td>
-                        <td>{{ item.localizacao or '-' }}</td>
-                        <td>{{ item.estoque_atual }} {{ item.unidade_medida }}</td>
-                        <td>{{ item.data_validade }}</td>
-                        <td>
-                            {% if item.dias_restantes < 0 %}
-                                <strong>Vencido há {{ item.dias_restantes|abs }} dia(s)</strong>
-                            {% elif item.dias_restantes == 0 %}
-                                <strong>Vence hoje</strong>
-                            {% else %}
-                                Vence em {{ item.dias_restantes }} dia(s) — Priorizar saída (PEPS)
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <td colspan="6">Validades em dia! Nenhum item vence nos próximos 30 dias.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </body>
-</html>
+        <div class="card">
+            <div class="card-title">Vencimento Próximo — Atenção PEPS (RN02)</div>
+            <div class="card-sub">Priorize a saída dos lotes com vencimento mais próximo</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Saldo</th>
+                            <th>Validade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in validade_proxima %}
+                            <tr>
+                                <td><strong>{{ item.nome }}</strong><br><small style="color: var(--text-muted);">{{ item.sku }}</small></td>
+                                <td>{{ item.estoque_atual }} {{ item.unidade_medida }}</td>
+                                <td>
+                                    {% if item.dias_restantes < 0 %}
+                                        <span class="badge badge-danger">Vencido ({{ item.data_validade }})</span>
+                                    {% else %}
+                                        <span class="badge badge-warn">{{ item.data_validade }} ({{ item.dias_restantes }}d)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                                    <strong>Validades em dia!</strong> Nenhum item vence nos próximos 30 dias.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

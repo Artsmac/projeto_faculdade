@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Painel Geral - StockFlow{% endblock %}
+{% block page_title %}Painel Geral{% endblock %}
+{% block page_subtitle %}Indicadores de movimentação, saldo físico e patrimônio em estoque{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <form method="get" action="{{ url_for('dashboard') }}" style="display: flex; flex-wrap: wrap; gap: 14px; align-items: end;">
+            <div style="min-width: 180px;">
+                <label for="mes">Período (Mês/Ano)</label>
+                <input type="month" id="mes" name="mes" value="{{ mes }}">
+            </div>
+            <div style="min-width: 220px;">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" name="categoria">
+                    <option value="">Todas as categorias</option>
+                    {% for cat in categorias %}
+                        <option value="{{ cat }}" {% if categoria == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline">Limpar Filtros</a>
+        </form>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Entradas do Mês</div>
+            <div class="kpi-value">+{{ indicadores.entradas_mes }} <span style="font-size: 14px; font-weight: 500;">un</span></div>
+            <div class="kpi-foot" style="color: var(--success-text);">Total acumulado no período</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Saídas de Estoque</div>
+            <div class="kpi-value">-{{ indicadores.saidas_mes }} <span style="font-size: 14px; font-weight: 500;">un</span></div>
+            <div class="kpi-foot" style="color: var(--danger-text);">Expedição, vendas e baixas</div>
+        </div>
+        <div class="kpi-card highlight">
+            <div class="kpi-label">Patrimônio em Estoque</div>
+            <div class="kpi-value">R$ {{ "%.2f"|format(indicadores.patrimonio_venda) }}</div>
+            <div class="kpi-foot">Custo: R$ {{ "%.2f"|format(indicadores.patrimonio_custo) }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Unidades Físicas</div>
+            <div class="kpi-value">{{ indicadores.total_unidades }} <span style="font-size: 14px; font-weight: 500;">un</span></div>
+            <div class="kpi-foot">{{ indicadores.total_produtos }} itens · {{ indicadores.total_alertas }} alerta(s)</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title">Histórico de Movimentações ({{ mes }})</div>
+            <div class="card-sub">Comparativo diário entre entradas e saídas</div>
+            <canvas id="graficoMovimentacoes"></canvas>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Distribuição por Categoria</div>
+            <div class="card-sub">Proporção de unidades armazenadas</div>
+            <div style="max-width: 300px; margin: 0 auto;">
+                <canvas id="graficoCategorias"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Mais Movimentados (Saídas no Período)</div>
+        <div class="card-sub">Produtos com maior volume de saída em {{ mes }}</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Produto</th>
+                        <th>Categoria</th>
+                        <th>Total Saídas</th>
+                        <th>Saldo Atual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in mais_movimentados %}
+                        <tr>
+                            <td><span class="badge badge-info">{{ item.sku }}</span></td>
+                            <td><strong>{{ item.nome }}</strong></td>
+                            <td>{{ item.categoria or '-' }}</td>
+                            <td><strong>{{ item.total_saida }} {{ item.unidade_medida }}</strong></td>
+                            <td>{{ item.estoque_atual }} {{ item.unidade_medida }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted);">
+                                Nenhuma saída registrada para os filtros selecionados.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="dados-dashboard"
+         data-dias='{{ chart_dias | tojson }}'
+         data-entradas='{{ chart_entradas | tojson }}'
+         data-saidas='{{ chart_saidas | tojson }}'
+         data-cat-labels='{{ cat_labels | tojson }}'
+         data-cat-valores='{{ cat_valores | tojson }}'>
+    </div>
+
+    <script>
+        const el = document.getElementById("dados-dashboard");
+        const dias = JSON.parse(el.dataset.dias);
+        const dadosEntradas = JSON.parse(el.dataset.entradas);
+        const dadosSaidas = JSON.parse(el.dataset.saidas);
+        const catLabels = JSON.parse(el.dataset.catLabels);
+        const catValores = JSON.parse(el.dataset.catValores);
+
+        new Chart(document.getElementById("graficoMovimentacoes"), {
+            type: "bar",
+            data: {
+                labels: dias.length ? dias : ["Sem movimentações"],
+                datasets: [
+                    { label: "Entradas (un)", data: dias.length ? dadosEntradas : [0], backgroundColor: "#4f46e5", borderRadius: 6 },
+                    { label: "Saídas (un)", data: dias.length ? dadosSaidas : [0], backgroundColor: "#ef4444", borderRadius: 6 }
+                ]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        new Chart(document.getElementById("graficoCategorias"), {
+            type: "doughnut",
+            data: {
+                labels: catLabels.length ? catLabels : ["Sem produtos"],
+                datasets: [{
+                    data: catValores.length ? catValores : [1],
+                    backgroundColor: ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6"]
+                }]
+            },
+            options: { responsive: true }
+        });
+    </script>
+{% endblock %}

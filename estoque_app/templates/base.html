@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}StockFlow - Gestão de Estoque{% endblock %}</title>
+    <style>
+        :root {
+            --bg-main: #f4f6fb;
+            --bg-card: #ffffff;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-soft: #eef2ff;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #dcfce7;
+            --success-text: #15803d;
+            --warn-bg: #fef3c7;
+            --warn-text: #b45309;
+            --danger-bg: #fee2e2;
+            --danger-text: #b91c1c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg-main); color: var(--text-dark); display: flex; min-height: 100vh; }
+
+        /* Barra Lateral */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; }
+        .brand-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--primary); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px;
+        }
+        .brand-title { font-size: 18px; font-weight: 700; line-height: 1.1; }
+        .brand-sub { font-size: 10px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; }
+
+        .user-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+        }
+        .user-name { font-size: 14px; font-weight: 600; color: var(--text-dark); }
+        .user-role { font-size: 12px; font-weight: 600; color: var(--primary); margin-top: 2px; }
+
+        .nav-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px; border-radius: 12px;
+            text-decoration: none; color: var(--text-muted);
+            font-size: 14px; font-weight: 500; transition: 0.15s;
+        }
+        .nav-link:hover { background: var(--bg-main); color: var(--text-dark); }
+        .nav-link.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+
+        .logout-link {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 14px; border-radius: 12px;
+            text-decoration: none; color: var(--danger-text);
+            font-size: 14px; font-weight: 600;
+            border-top: 1px solid var(--border); margin-top: 16px;
+        }
+        .logout-link:hover { background: var(--danger-bg); }
+
+        /* Área Principal */
+        .main { flex: 1; padding: 28px 32px; max-width: 1320px; }
+        .topbar {
+            display: flex; flex-wrap: wrap; justify-content: space-between;
+            align-items: center; gap: 16px; margin-bottom: 24px;
+        }
+        .page-title { font-size: 26px; font-weight: 700; color: var(--text-dark); }
+        .page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+        .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .quick-search {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 9px 14px; font-size: 13px; width: 230px;
+        }
+
+        /* Cartões, Botões e Formulários */
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 18px; padding: 22px; margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+        }
+        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .card-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1.35fr; gap: 20px; align-items: start; }
+        .grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+
+        .kpi-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 18px; padding: 20px;
+        }
+        .kpi-card.highlight {
+            background: linear-gradient(135deg, #4f46e5, #2563eb);
+            color: #ffffff; border: none;
+        }
+        .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
+        .kpi-value { font-size: 26px; font-weight: 800; margin: 10px 0 4px; }
+        .kpi-foot { font-size: 12px; opacity: 0.85; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        label {
+            display: block; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; color: var(--text-muted);
+            margin-bottom: 6px; letter-spacing: 0.04em;
+        }
+        input[type="text"], input[type="number"], input[type="date"], input[type="month"],
+        input[type="password"], input[type="email"], select, textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+            border-radius: 10px; background: #f8fafc; font-size: 14px; color: var(--text-dark);
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none; border-color: var(--primary); background: #fff;
+        }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 10px 18px; border-radius: 11px; font-size: 14px; font-weight: 600;
+            border: none; cursor: pointer; text-decoration: none; transition: 0.15s;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: #fff; color: var(--text-dark); border: 1px solid var(--border); }
+        .btn-outline:hover { background: var(--bg-main); }
+        .btn-block { width: 100%; }
+
+        /* Tabelas e Badges */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            text-align: left; padding: 11px 12px; font-size: 11px;
+            text-transform: uppercase; color: var(--text-muted);
+            border-bottom: 1px solid var(--border); letter-spacing: 0.04em;
+        }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:hover td { background: #fafbff; }
+
+        .badge {
+            display: inline-block; padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 700;
+        }
+        .badge-ok { background: var(--success-bg); color: var(--success-text); }
+        .badge-warn { background: var(--warn-bg); color: var(--warn-text); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger-text); }
+        .badge-info { background: var(--primary-soft); color: var(--primary); }
+
+        .flash-list { list-style: none; margin-bottom: 18px; display: flex; flex-direction: column; gap: 8px; }
+        .flash-item {
+            padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600;
+            background: var(--primary-soft); color: var(--primary); border: 1px solid #c7d2fe;
+        }
+        .flash-item.erro {
+            background: var(--danger-bg); color: var(--danger-text); border-color: #fecaca;
+        }
+
+        /* Responsivo para Tablet e Telas Menores (RNF02) */
+        @media (max-width: 960px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 16px; }
+            .nav-list { flex-direction: row; flex-wrap: wrap; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .grid-2, .grid-equal { grid-template-columns: 1fr; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <aside class="sidebar">
+        <div>
+            <div class="brand">
+                <div class="brand-icon">SF</div>
+                <div>
+                    <div class="brand-title">StockFlow</div>
+                    <div class="brand-sub">GESTÃO DE ESTOQUE</div>
+                </div>
+            </div>
+
+            <div class="user-card">
+                <div class="user-name">{{ session.get('nome', 'Operador') }}</div>
+                <div class="user-role">Perfil: {{ session.get('perfil', '') }}</div>
+            </div>
+
+            <ul class="nav-list">
+                <li>
+                    <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        Painel Geral
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('produtos') }}" class="nav-link {% if request.endpoint == 'produtos' %}active{% endif %}">
+                        Consulta Rápida
+                    </a>
+                </li>
+                {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
+                    <li>
+                        <a href="{{ url_for('produto_novo') }}" class="nav-link {% if request.endpoint == 'produto_novo' %}active{% endif %}">
+                            Cadastro de Produtos
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('entradas') }}" class="nav-link {% if request.endpoint == 'entradas' %}active{% endif %}">
+                            Entradas de Estoque
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('saidas') }}" class="nav-link {% if request.endpoint == 'saidas' %}active{% endif %}">
+                            Saídas de Estoque
+                        </a>
+                    </li>
+                {% endif %}
+                <li>
+                    <a href="{{ url_for('alertas') }}" class="nav-link {% if request.endpoint == 'alertas' %}active{% endif %}">
+                        Reposição &amp; Alertas
+                    </a>
+                </li>
+                {% if session.get('perfil', '').upper() == 'GERENTE' %}
+                    <li>
+                        <a href="{{ url_for('gerencial') }}" class="nav-link {% if request.endpoint == 'gerencial' %}active{% endif %}">
+                            Área Gerencial
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <a href="{{ url_for('logout') }}" class="logout-link">Sair do Sistema</a>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <h1 class="page-title">{% block page_title %}StockFlow{% endblock %}</h1>
+                <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+            </div>
+            <div class="topbar-actions">
+                <form method="get" action="{{ url_for('produtos') }}">
+                    <input type="text" name="q" class="quick-search" placeholder="Buscar produto ou SKU...">
+                </form>
+                {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
+                    <a href="{{ url_for('entradas') }}" class="btn btn-primary">+ Movimentar</a>
+                {% endif %}
+            </div>
+        </header>
+
+        {% with mensagens = get_flashed_messages() %}
+            {% if mensagens %}
+                <ul class="flash-list">
+                    {% for msg in mensagens %}
+                        <li class="flash-item {% if 'Bloqueado' in msg or 'inválid' in msg or 'não pode' in msg %}erro{% endif %}">
+                            {{ msg }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
