@@ -41,22 +41,22 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        login_digitado = request.form.get("login", "").strip()
+        email_digitado = request.form.get("email", "").strip()
         senha = request.form.get("senha", "")
         resultado = consultar(
-            "SELECT id_usuario, nome, senha_hash, perfil "
-            "FROM usuario WHERE login = %s AND ativo = TRUE",
-            (login_digitado,),
+            "SELECT id_usuario, nome, senha, perfil_acesso "
+            "FROM tb_usuarios WHERE email = %s",
+            (email_digitado,),
         )
-        if resultado and check_password_hash(resultado[0]["senha_hash"], senha):
+        if resultado and check_password_hash(resultado[0]["senha"], senha):
             usuario = resultado[0]
             session.clear()
             session["id_usuario"] = usuario["id_usuario"]
             session["nome"] = usuario["nome"]
-            session["perfil"] = usuario["perfil"]
+            session["perfil"] = usuario["perfil_acesso"]
             return redirect(url_for("produtos"))
-        flash("Login ou senha inválidos.")
-    return render_template("login.html"),
+        flash("E-mail ou senha inválidos.")
+    return render_template("login.html")
 
 @app.route("/logout")
 def logout():
