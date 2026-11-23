@@ -8,14 +8,19 @@
     <body>
         <p>
             {{ session['nome']}} ({{ session['perfil']}})
-            | <a href="{{url_for('logout')}}">Sair</a>
+            | <a href="{{url_for('produtos')}}">Produtos</a>
+            {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
+                | <a href="{{url_for('entradas')}}">Entradas</a>
+                | <a href="{{url_for('saidas')}}">Saidas</a>
+            {% endif %}
+            <a href="{{url_for('logout')}}">Sair</a>
         </p>
         {% with mensagens = get_flashed_messages() %}
             {% if mensagens %}
                 <ul>
                     {% for msg in mensagens %}
                     <li><strong>{{ msg }}</strong></li>
-                    {% end for %}
+                    {% endfor %}
                 </ul>
             {% endif %}
         {% endwith %}
