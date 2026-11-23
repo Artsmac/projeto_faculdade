@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reposição e Alertas - StockFlow</title>
+    </head>
+    <body>
+        <p>
+            {{ session['nome'] }} ({{ session['perfil'] }})
+            | <a href="{{ url_for('produtos') }}">Produtos</a>
+            {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
+                | <a href="{{ url_for('entradas') }}">Entradas</a>
+                | <a href="{{ url_for('saidas') }}">Saídas</a>
+            {% endif %}
+            | <a href="{{ url_for('alertas') }}">Reposição &amp; Alertas</a>
+            {% if session.get('perfil', '').upper() == 'GERENTE' %}
+                | <a href="{{ url_for('gerencial') }}">Área Gerencial</a>
+            {% endif %}
+            | <a href="{{ url_for('logout') }}">Sair</a>
+        </p>
+
+        <h1>Reposição &amp; Alertas</h1>
+        <p>
+            <strong>Estoque Baixo:</strong> {{ estoque_baixo|length }} itens |
+            <strong>Validade Crítica (30 dias):</strong> {{ validade_proxima|length }} itens
+        </p>
+
+        <h2>Itens Abaixo do Mínimo (RF04)</h2>
+        <table border="1" cellpadding="8">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Produto</th>
+                    <th>Localização</th>
+                    <th>Saldo Atual</th>
+                    <th>Estoque Mínimo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in estoque_baixo %}
+                    <tr>
+                        <td>{{ item.sku }}</td>
+                        <td>{{ item.nome }}</td>
+                        <td>{{ item.localizacao or '-' }}</td>
+                        <td><strong>{{ item.estoque_atual }} {{ item.unidade_medida }}</strong></td>
+                        <td>{{ item.estoque_minimo }} {{ item.unidade_medida }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5">Tudo em ordem! Nenhum produto está abaixo do estoque mínimo.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Vencimento Próximo — Atenção PEPS (RN02)</h2>
+        <table border="1" cellpadding="8">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Produto</th>
+                    <th>Localização</th>
+                    <th>Saldo em Lote</th>
+                    <th>Data de Validade</th>
+                    <th>Situação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in validade_proxima %}
+                    <tr>
+                        <td>{{ item.sku }}</td>
+                        <td>{{ item.nome }}</td>
+                        <td>{{ item.localizacao or '-' }}</td>
+                        <td>{{ item.estoque_atual }} {{ item.unidade_medida }}</td>
+                        <td>{{ item.data_validade }}</td>
+                        <td>
+                            {% if item.dias_restantes < 0 %}
+                                <strong>Vencido há {{ item.dias_restantes|abs }} dia(s)</strong>
+                            {% elif item.dias_restantes == 0 %}
+                                <strong>Vence hoje</strong>
+                            {% else %}
+                                Vence em {{ item.dias_restantes }} dia(s) — Priorizar saída (PEPS)
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6">Validades em dia! Nenhum item vence nos próximos 30 dias.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </body>
+</html>
