@@ -19,7 +19,7 @@ for nome, email,perfil in usuarios_teste:
         ON DUPLICATE KEY UPDATE
             nome = VALUES(nome),
             senha = VALUES(senha),
-            perfil_acesso = VALUES(perfil_acesso),
+            perfil_acesso = VALUES(perfil_acesso)
         """,
         (nome, email, senha_criptografada, perfil),
     )
