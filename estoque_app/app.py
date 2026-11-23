@@ -107,7 +107,7 @@ def produto_novo():
             erros.append("Informe o codigo SKU do produto.")
         else:
             existente = consultar(
-                "SELECT id_produto FORM tb_produtos WHERE sku = %s",
+                "SELECT id_produto FROM tb_produtos WHERE sku = %s",
                 (sku,),
             )
             if existente:
