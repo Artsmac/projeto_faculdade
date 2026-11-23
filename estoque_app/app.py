@@ -56,7 +56,7 @@ def login():
             session["perfil"] = usuario["perfil"]
             return redirect(url_for("produtos"))
         flash("Login ou senha inválidos.")
-    return render_template(login.html)
+    return render_template("login.html")
 
 @app.route("/logout")
 def logout():
