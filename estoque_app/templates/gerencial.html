@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Área Gerencial - StockFlow</title>
+    </head>
+    <body>
+        <p>
+            {{ session['nome'] }} ({{ session['perfil'] }})
+            | <a href="{{ url_for('produtos') }}">Produtos</a>
+            | <a href="{{ url_for('entradas') }}">Entradas</a>
+            | <a href="{{ url_for('saidas') }}">Saídas</a>
+            | <a href="{{ url_for('alertas') }}">Reposição &amp; Alertas</a>
+            | <a href="{{ url_for('gerencial') }}">Área Gerencial</a>
+            | <a href="{{ url_for('logout') }}">Sair</a>
+        </p>
+
+        <h1>Área Gerencial — Ajuste Manual Autorizado (RN03)</h1>
+
+        {% with mensagens = get_flashed_messages() %}
+            {% if mensagens %}
+                <ul>
+                    {% for msg in mensagens %}
+                        <li><strong>{{ msg }}</strong></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            <p>
+                <label for="id_produto">Selecione o Produto *:</label><br>
+                <select id="id_produto" name="id_produto" required>
+                    <option value="">Escolha um item...</option>
+                    {% for p in produtos %}
+                        <option value="{{ p.id_produto }}">
+                            [{{ p.sku }}] {{ p.nome }} (Saldo atual no sistema: {{ p.estoque_atual }} {{ p.unidade_medida }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </p>
+            <p>
+                <label for="quantidade_contada">Nova Quantidade Física Contada *:</label><br>
+                <input type="number" id="quantidade_contada" name="quantidade_contada" min="0" value="0" required>
+            </p>
+            <p>
+                <label for="justificativa">Justificativa Obrigatória (RN03) *:</label><br>
+                <textarea id="justificativa" name="justificativa" rows="3" cols="50" placeholder="Ex: Auditoria e contagem física na prateleira; avaria de embalagem." required></textarea>
+            </p>
+            <p>
+                <label for="senha_confirmacao">Senha de Confirmação do Gerente *:</label><br>
+                <input type="password" id="senha_confirmacao" name="senha_confirmacao" required>
+            </p>
+            <button type="submit">Gravar Ajuste Gerencial</button>
+        </form>
+
+        <h2>Histórico de Auditoria Gerencial</h2>
+        <table border="1" cellpadding="8">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Produto</th>
+                    <th>Nova Qtd.</th>
+                    <th>Justificativa</th>
+                    <th>Responsável</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in historico %}
+                    <tr>
+                        <td>{{ item.data_hora }}</td>
+                        <td>[{{ item.sku }}] {{ item.produto }}</td>
+                        <td>{{ item.quantidade_contada }} {{ item.unidade_medida }}</td>
+                        <td>{{ item.justificativa }}</td>
+                        <td>{{ item.responsavel }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5">Nenhum ajuste manual realizado até o momento.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </body>
+</html>
