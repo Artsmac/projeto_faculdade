@@ -417,6 +417,152 @@ def gerencial():
     )
     return render_template("gerencial.html", produtos=produtos_lista, historico=historico)
 
+# -- dashboard / painel geral (Encontro 6)
+
+@app.route("/dashboard")
+@login_requerido
+def dashboard():
+    hoje_mes = consultar("SELECT DATE_FORMAT(CURDATE(), '%Y-%m') AS mes")[0]["mes"]
+    mes = request.args.get("mes", "").strip() or hoje_mes
+    categoria = request.args.get("categoria", "").strip()
+
+    categorias_rows = consultar(
+        "SELECT DISTINCT categoria FROM tb_produtos "
+        "WHERE categoria IS NOT NULL AND categoria <> '' ORDER BY categoria"
+    )
+    categorias = [r["categoria"] for r in categorias_rows]
+
+    filtro_cat_sql = " AND p.categoria = %s" if categoria else ""
+    params_mov = [mes, categoria] if categoria else [mes]
+
+    entradas_mes = consultar(
+        f"""
+        SELECT COALESCE(SUM(e.quantidade), 0) AS total
+        FROM tb_entradas e
+        JOIN tb_produtos p ON p.id_produto = e.id_produto
+        WHERE DATE_FORMAT(e.data_hora, '%Y-%m') = %s {filtro_cat_sql}
+        """,
+        tuple(params_mov),
+    )[0]["total"]
+
+    saidas_mes = consultar(
+        f"""
+        SELECT COALESCE(SUM(s.quantidade), 0) AS total
+        FROM tb_saidas s
+        JOIN tb_produtos p ON p.id_produto = s.id_produto
+        WHERE DATE_FORMAT(s.data_hora, '%Y-%m') = %s {filtro_cat_sql}
+        """,
+        tuple(params_mov),
+    )[0]["total"]
+
+    filtro_prod_sql = " WHERE categoria = %s" if categoria else ""
+    params_prod = (categoria,) if categoria else ()
+
+    resumo_estoque = consultar(
+        f"""
+        SELECT
+            COUNT(*) AS total_produtos,
+            COALESCE(SUM(estoque_atual), 0) AS total_unidades,
+            COALESCE(SUM(estoque_atual * preco_venda), 0) AS patrimonio_venda,
+            COALESCE(SUM(estoque_atual * preco_custo), 0) AS patrimonio_custo,
+            COALESCE(SUM(CASE WHEN estoque_atual <= estoque_minimo THEN 1 ELSE 0 END), 0) AS total_alertas
+        FROM tb_produtos
+        {filtro_prod_sql}
+        """,
+        params_prod,
+    )[0]
+
+    entradas_dia = consultar(
+        f"""
+        SELECT DATE_FORMAT(e.data_hora, '%d/%m') AS dia, DATE(e.data_hora) AS data_ord, SUM(e.quantidade) AS total
+        FROM tb_entradas e
+        JOIN tb_produtos p ON p.id_produto = e.id_produto
+        WHERE DATE_FORMAT(e.data_hora, '%Y-%m') = %s {filtro_cat_sql}
+        GROUP BY DATE(e.data_hora), DATE_FORMAT(e.data_hora, '%d/%m')
+        ORDER BY data_ord ASC
+        """,
+        tuple(params_mov),
+    )
+    saidas_dia = consultar(
+        f"""
+        SELECT DATE_FORMAT(s.data_hora, '%d/%m') AS dia, DATE(s.data_hora) AS data_ord, SUM(s.quantidade) AS total
+        FROM tb_saidas s
+        JOIN tb_produtos p ON p.id_produto = s.id_produto
+        WHERE DATE_FORMAT(s.data_hora, '%Y-%m') = %s {filtro_cat_sql}
+        GROUP BY DATE(s.data_hora), DATE_FORMAT(s.data_hora, '%d/%m')
+        ORDER BY data_ord ASC
+        """,
+        tuple(params_mov),
+    )
+
+    mapa_dias = {}
+    for row in entradas_dia:
+        mapa_dias[row["dia"]] = {"entrada": int(row["total"]), "saida": 0}
+    for row in saidas_dia:
+        if row["dia"] not in mapa_dias:
+            mapa_dias[row["dia"]] = {"entrada": 0, "saida": int(row["total"])}
+        else:
+            mapa_dias[row["dia"]]["saida"] = int(row["total"])
+
+    chart_dias = list(mapa_dias.keys())
+    chart_entradas = [mapa_dias[d]["entrada"] for d in chart_dias]
+    chart_saidas = [mapa_dias[d]["saida"] for d in chart_dias]
+
+    dist_categorias = consultar(
+        """
+        SELECT
+            COALESCE(NULLIF(categoria, ''), 'Sem categoria') AS categoria,
+            COALESCE(SUM(estoque_atual), 0) AS total
+        FROM tb_produtos
+        GROUP BY COALESCE(NULLIF(categoria, ''), 'Sem categoria')
+        ORDER BY total DESC
+        """
+    )
+    cat_labels = [r["categoria"] for r in dist_categorias]
+    cat_valores = [int(r["total"]) for r in dist_categorias]
+
+    mais_movimentados = consultar(
+        f"""
+        SELECT
+            p.sku,
+            p.nome,
+            p.categoria,
+            p.unidade_medida,
+            SUM(s.quantidade) AS total_saida,
+            p.estoque_atual
+        FROM tb_saidas s
+        JOIN tb_produtos p ON p.id_produto = s.id_produto
+        WHERE DATE_FORMAT(s.data_hora, '%Y-%m') = %s {filtro_cat_sql}
+        GROUP BY p.id_produto, p.sku, p.nome, p.categoria, p.unidade_medida, p.estoque_atual
+        ORDER BY total_saida DESC
+        LIMIT 5
+        """,
+        tuple(params_mov),
+    )
+
+    indicadores = {
+        "entradas_mes": int(entradas_mes),
+        "saidas_mes": int(saidas_mes),
+        "total_produtos": int(resumo_estoque["total_produtos"]),
+        "total_unidades": int(resumo_estoque["total_unidades"]),
+        "patrimonio_venda": float(resumo_estoque["patrimonio_venda"]),
+        "patrimonio_custo": float(resumo_estoque["patrimonio_custo"]),
+        "total_alertas": int(resumo_estoque["total_alertas"]),
+    }
+
+    return render_template(
+        "dashboard.html",
+        mes=mes,
+        categoria=categoria,
+        categorias=categorias,
+        indicadores=indicadores,
+        chart_dias=chart_dias,
+        chart_entradas=chart_entradas,
+        chart_saidas=chart_saidas,
+        cat_labels=cat_labels,
+        cat_valores=cat_valores,
+        mais_movimentados=mais_movimentados,
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
