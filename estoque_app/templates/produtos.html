@@ -7,13 +7,17 @@
     </head>
     <body>
         <p>
-            {{ session['nome']}} ({{ session['perfil']}})
-            | <a href="{{url_for('produtos')}}">Produtos</a>
+            {{ session['nome'] }} ({{ session['perfil'] }})
+            | <a href="{{ url_for('produtos') }}">Produtos</a>
             {% if session.get('perfil', '').upper() in ['ESTOQUISTA', 'GERENTE'] %}
-                | <a href="{{url_for('entradas')}}">Entradas</a>
-                | <a href="{{url_for('saidas')}}">Saidas</a>
+                | <a href="{{ url_for('entradas') }}">Entradas</a>
+                | <a href="{{ url_for('saidas') }}">Saídas</a>
             {% endif %}
-            <a href="{{url_for('logout')}}">Sair</a>
+            | <a href="{{ url_for('alertas') }}">Reposição &amp; Alertas</a>
+            {% if session.get('perfil', '').upper() == 'GERENTE' %}
+                | <a href="{{ url_for('gerencial') }}">Área Gerencial</a>
+            {% endif %}
+            | <a href="{{ url_for('logout') }}">Sair</a>
         </p>
         {% with mensagens = get_flashed_messages() %}
             {% if mensagens %}

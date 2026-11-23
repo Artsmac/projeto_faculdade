@@ -311,3 +311,110 @@ def saidas():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# -- reposicao e alertas (RF04 e RN02 - PEPS)
+
+@app.route("/alertas")
+@login_requerido
+def alertas():
+    estoque_baixo = consultar(
+    """
+    SELECT
+        sku,
+        nome,
+        categoria,
+        localizacao,
+        unidade_medida,
+        estoque_atual,
+        estoque_minimo
+    FROM tb_produtos
+    WHERE estoque_atual <= estoque_minimo
+    ORDER BY (estoque_atual - estoque_minimo) ASC, nome ASC
+    """
+    )
+    validade_proxima = consultar(
+        """
+        SELECT
+            sku,
+            nome,
+            categoria,
+            localizacao,
+            unidade_medida,
+            estoque_atual,
+            data_validade,
+            DATEDIF(data_validade, CURDATE()) AS dias_restantes
+        FROM tb_produtos
+        WHERE data_validade IS NOT NULL
+            AND estoque_atual > 0
+            AND data_validade <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        """
+    )
+    return render_template(
+        "alertas.html",
+        estoque_baixo=estoque_baixo,
+        validade_proxima=validade_proxima,
+    )
+
+# -- area gerencial e auditoria (RN03)
+
+@app.route("/gerencial", methods=["GET", "POST"])
+@perfil_requerido("GERENTE")
+def gerencial():
+    if request.method == "POST":
+        id_produto = request.form.get("id_produto", "").strip()
+        justificativa = request.form.get("jusitificativa", "").strip()
+        senha_confirmacao = request.form.get("senha_confirmacao", "")
+
+        try:
+            quantidade_contada = int(request.form.get("quantidade_contada", "-1"))
+        except ValueError:
+            quantidade_contada = -1
+
+        if not id_produto or quantidade_contada < 0:
+            flash("Selecione um produto e informe uma quantidade fisica valida. (0 ou maior)")
+        elif not justificativa:
+            flash("A justificativa é obirgatória para auditoria.")
+        else:
+            gerente = consultar(
+                "SELECT senha FROM tb_usuarios WHERE id_usuario %s",
+                (session["id_usuario"],),
+            )
+            if not gerente or not check_password_hash(gerente[0]["senha"], senha_confirmacao):
+                flash("Bloqueado: Senha do gerente incorreta.")
+            else:
+                executar(
+                    """
+                    INSERT INTO tb_ajustes_auditoria
+                    (id_produto, id_gerente, quantidade_contada, justificativa)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (id_produto, session["id_usuario"], quantidade_contada, justificativa),
+                )
+                executar(
+                    "UPDATE tb_produtos SET estoque_atual = %s WHERE id_produto = %s",
+                    (quantidade_contada, id_produto)
+                )
+                flash("Ajsute gerencial gravado no log de auditoria e saldo atualizado.")
+                return redirect(url_for("gerencial"))
+
+    produtos_lista = consultar(
+        "SELECT id_produto, sku, nome, estoque_atual, unidade_medida FROM tb_produtos ORDER BY nome"
+    )
+    historico = consultar(
+        """
+        SELECT
+            a.data_hora
+            p.sku,
+            p.nome AS produto,
+            p.unidade_medida_
+            a.quantidade_contada,
+            a.justificativa,
+            u.nome AS responsavel
+        FROM tb_ajustes_auditoria a
+        JOIN tb_produtos p ON p.id_produto = a.id_produto
+        JOIN tb_usuarios u ON u.id_usuario = a.id_gerente
+        ORDER BY a.data_hora DESC
+        LIMIT 20
+        """
+    )
+    return render_template("gerencial.html", produtos=produtos_lista, historico=historico)
